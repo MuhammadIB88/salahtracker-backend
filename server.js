@@ -10,7 +10,9 @@ const logRoutes = require('./routes/logs'); // Added this
 const app = express();
 
 // 2. Middleware
-app.use(cors());
+app.use(cors({
+  origin: "https://salahtracker-evhm.onrender.com"
+}));
 app.use(express.json());
 
 // 3. Routes
