@@ -3,31 +3,36 @@ const admin = require('../config/firebaseAdmin');
 const axios = require('axios');
 
 const checkAndSendNotifications = async () => {
-  const now = new Date();
-  // Get current time in HH:mm format
-  const currentTime = now.getHours().toString().padStart(2, '0') + ":" + 
-                      now.getMinutes().toString().padStart(2, '0');
-
   try {
     // 1. Find all users who have an FCM token saved
     const users = await User.find({ fcmToken: { $ne: null } });
 
     for (let user of users) {
       // 2. Fetch prayer times for the user's location
-      // Using user.state as city and user.country as country
       const response = await axios.get(
         `https://api.aladhan.com/v1/timingsByCity?city=${user.state}&country=${user.country}&method=3`
       );
       
-      const timings = response.data.data.timings;
+      const data = response.data.data;
+      const timings = data.timings;
+      const userTimezone = data.meta.timezone; // Get the user's local timezone (e.g., "Africa/Lagos")
+
+      // 3. Get the current time in the user's specific timezone
+      const userCurrentTime = new Date().toLocaleString("en-GB", {
+        timeZone: userTimezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+
       const prayersToCheck = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
       for (let prayer of prayersToCheck) {
-        // Extract only the HH:mm part from the API (it sometimes includes timezone)
+        // Extract only the HH:mm part from the API
         const prayerTime = timings[prayer].match(/\d{2}:\d{2}/)[0];
 
-        // 3. If the prayer time is RIGHT NOW, send the notification
-        if (prayerTime === currentTime) {
+        // 4. Compare local user time with prayer time
+        if (prayerTime === userCurrentTime) {
           const message = {
             notification: {
               title: `Time for ${prayer}`,
@@ -37,7 +42,7 @@ const checkAndSendNotifications = async () => {
           };
 
           await admin.messaging().send(message);
-          console.log(`Notification sent: ${prayer} for ${user.name}`);
+          console.log(`✅ Notification sent: ${prayer} to ${user.name} (Local Time: ${userCurrentTime})`);
         }
       }
     }
@@ -46,7 +51,7 @@ const checkAndSendNotifications = async () => {
   }
 };
 
-// This starts the loop to check every 60,000 milliseconds (1 minute)
+// Start the loop (Checks every minute)
 const startNotificationTimer = () => {
   console.log("Azaan Notification Timer Started (Checking every minute) ⏰");
   setInterval(checkAndSendNotifications, 60000);
