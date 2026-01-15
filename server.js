@@ -16,6 +16,11 @@ app.use(cors({
 app.use(express.json());
 
 // 3. Routes
+// Keep-alive route for Cron-job.org
+app.get('/ping', (req, res) => {
+  res.status(200).send('Server is awake!');
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/logs', logRoutes); // Added this
 
