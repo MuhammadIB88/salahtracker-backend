@@ -29,19 +29,15 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Check if user exists
     let user = await User.findOne({ email });
     if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
 
-    // 2. Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
-    // 3. Create a Token (this is like a digital ID card for the user)
     const payload = { userId: user.id };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 
-    // 4. Send the token and user info back to the frontend
     res.json({
       token,
       user: {
@@ -53,6 +49,24 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (err) {
+    res.status(500).send("Server Error");
+  }
+});
+
+// --- NEW: UPDATE FCM TOKEN ROUTE ---
+// This route saves the device token to the specific user
+router.post('/update-fcm-token', async (req, res) => {
+  try {
+    const { userId, fcmToken } = req.body;
+
+    if (!userId || !fcmToken) {
+      return res.status(400).json({ msg: "Missing userId or token" });
+    }
+
+    await User.findByIdAndUpdate(userId, { fcmToken });
+    res.json({ msg: "FCM Token updated successfully" });
+  } catch (err) {
+    console.error("Token update error:", err);
     res.status(500).send("Server Error");
   }
 });
