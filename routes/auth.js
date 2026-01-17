@@ -54,7 +54,6 @@ router.post('/login', async (req, res) => {
 });
 
 // --- NEW: UPDATE FCM TOKEN ROUTE ---
-// This route saves the device token to the specific user
 router.post('/update-fcm-token', async (req, res) => {
   try {
     const { userId, fcmToken } = req.body;
@@ -67,6 +66,35 @@ router.post('/update-fcm-token', async (req, res) => {
     res.json({ msg: "FCM Token updated successfully" });
   } catch (err) {
     console.error("Token update error:", err);
+    res.status(500).send("Server Error");
+  }
+});
+
+// --- NEW: UPDATE LOCATION ROUTE ---
+router.post('/update-location', async (req, res) => {
+  try {
+    const { userId, country, state } = req.body;
+
+    if (!userId || !country || !state) {
+      return res.status(400).json({ msg: "Missing userId, country, or state" });
+    }
+
+    // Update the user and return the updated fields
+    const updatedUser = await User.findByIdAndUpdate(
+      userId, 
+      { country, state }, 
+      { new: true }
+    );
+
+    res.json({ 
+      msg: "Location updated successfully",
+      user: {
+        country: updatedUser.country,
+        state: updatedUser.state
+      }
+    });
+  } catch (err) {
+    console.error("Location update error:", err);
     res.status(500).send("Server Error");
   }
 });
