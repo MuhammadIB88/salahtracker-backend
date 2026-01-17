@@ -7,19 +7,47 @@ const User = require('../models/user');
 // --- SIGNUP ROUTE ---
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, password, country, state } = req.body;
+    // 1. Added city and fcmToken to the destructuring to catch them from the frontend
+    const { name, email, password, country, state, city, fcmToken } = req.body;
 
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ msg: "User already exists" });
 
-    user = new User({ name, email, password, country, state });
+    // 2. Included city and fcmToken in the new user creation
+    user = new User({ 
+      name, 
+      email, 
+      password, 
+      country, 
+      state, 
+      city, 
+      fcmToken 
+    });
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
 
     await user.save();
-    res.status(201).json({ msg: "User registered successfully" });
+
+    // 3. Generate token so they log in immediately after signup
+    const payload = { userId: user.id };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    // 4. Return the full data just like the Login route does
+    res.status(201).json({ 
+      msg: "User registered successfully",
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        country: user.country,
+        state: user.state,
+        city: user.city,
+        fcmToken: user.fcmToken
+      }
+    });
   } catch (err) {
+    console.error("Signup Error:", err);
     res.status(500).send("Server Error");
   }
 });
@@ -45,7 +73,8 @@ router.post('/login', async (req, res) => {
         name: user.name,
         country: user.country,
         state: user.state,
-        city: user.city // Added city here so frontend receives it on login
+        city: user.city, // Returns city on login
+        fcmToken: user.fcmToken // Returns token on login
       }
     });
 
@@ -54,7 +83,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// --- NEW: UPDATE FCM TOKEN ROUTE ---
+// --- UPDATE FCM TOKEN ROUTE ---
 router.post('/update-fcm-token', async (req, res) => {
   try {
     const { userId, fcmToken } = req.body;
@@ -71,18 +100,15 @@ router.post('/update-fcm-token', async (req, res) => {
   }
 });
 
-// --- NEW: UPDATE LOCATION ROUTE ---
+// --- UPDATE LOCATION ROUTE ---
 router.post('/update-location', async (req, res) => {
   try {
-    // Added 'city' to the destructured body
     const { userId, country, state, city } = req.body;
 
-    // Check for city as well
     if (!userId || !country || !state || !city) {
       return res.status(400).json({ msg: "Missing userId, country, state, or city" });
     }
 
-    // Update the user including the new city field
     const updatedUser = await User.findByIdAndUpdate(
       userId, 
       { country, state, city }, 
@@ -94,7 +120,7 @@ router.post('/update-location', async (req, res) => {
       user: {
         country: updatedUser.country,
         state: updatedUser.state,
-        city: updatedUser.city // Return city in the response
+        city: updatedUser.city
       }
     });
   } catch (err) {
