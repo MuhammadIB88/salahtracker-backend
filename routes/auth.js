@@ -44,7 +44,8 @@ router.post('/login', async (req, res) => {
         id: user.id,
         name: user.name,
         country: user.country,
-        state: user.state
+        state: user.state,
+        city: user.city // Added city here so frontend receives it on login
       }
     });
 
@@ -73,16 +74,18 @@ router.post('/update-fcm-token', async (req, res) => {
 // --- NEW: UPDATE LOCATION ROUTE ---
 router.post('/update-location', async (req, res) => {
   try {
-    const { userId, country, state } = req.body;
+    // Added 'city' to the destructured body
+    const { userId, country, state, city } = req.body;
 
-    if (!userId || !country || !state) {
-      return res.status(400).json({ msg: "Missing userId, country, or state" });
+    // Check for city as well
+    if (!userId || !country || !state || !city) {
+      return res.status(400).json({ msg: "Missing userId, country, state, or city" });
     }
 
-    // Update the user and return the updated fields
+    // Update the user including the new city field
     const updatedUser = await User.findByIdAndUpdate(
       userId, 
-      { country, state }, 
+      { country, state, city }, 
       { new: true }
     );
 
@@ -90,7 +93,8 @@ router.post('/update-location', async (req, res) => {
       msg: "Location updated successfully",
       user: {
         country: updatedUser.country,
-        state: updatedUser.state
+        state: updatedUser.state,
+        city: updatedUser.city // Return city in the response
       }
     });
   } catch (err) {
